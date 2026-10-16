@@ -1,15 +1,21 @@
-// TWINS Center 反向代理：https://<project>.pages.dev -> http://103.217.191.79:11008
+// TWINS Center reverse proxy: <pages-domain> -> Center
+// Upstream origin is read from env.CENTER_ORIGIN (configure in Cloudflare Pages project settings),
+// so the internal endpoint is not leaked in this public repo.
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
   const url = new URL(request.url);
-  const origin = "http://103.217.191.79:11008";
+  const origin = env.CENTER_ORIGIN;
 
-  // 根路径 302 到 /docs，落地 Swagger 界面而不是 404
+  if (!origin) {
+    return new Response("CENTER_ORIGIN not configured", { status: 500 });
+  }
+
+  // Root redirects to /docs (Swagger UI) instead of 404
   if (url.pathname === "/") {
     return new Response(null, { status: 302, headers: { Location: "/docs" } });
   }
 
-  const target = origin + url.pathname + url.search;
+  const target = origin.replace(/\/$/, "") + url.pathname + url.search;
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.set("x-forwarded-proto", "https");
